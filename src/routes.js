@@ -2,6 +2,9 @@ const axios = require("axios");
 require("dotenv").config();
 
 const routes = {
+	axiosSvault: axios.create({
+		baseURL: process.env.CURR_URL,
+	}),
 	axios: axios.create({
 		baseURL: process.env.BASE_URL,
 	}),
@@ -9,6 +12,13 @@ const routes = {
 		baseURL: process.env.BACKEND_BASE_URL,
 		headers: {
 			Authorization: `Bearer ${process.env.AUTH_TOKEN}`,
+		},
+	}),
+	axiosDog: axios.create({
+		baseURL: "https://svault-keidakira.harperdbcloud.com",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: "Basic a2VpZGFraXJhOlBAJCR3MHJk",
 		},
 	}),
 	clerk: {

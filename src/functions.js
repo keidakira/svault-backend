@@ -38,16 +38,13 @@ const addUrlParams = (url, obj) => {
 	return url.slice(0, -1);
 };
 
-const encryptAES = (plainText) => {
-	const cipherText = CryptoJS.AES.encrypt(
-		plainText,
-		process.env.HASH_KEY
-	).toString();
+const encryptAES = (plainText, key = process.env.HASH_KEY) => {
+	const cipherText = CryptoJS.AES.encrypt(plainText, key).toString();
 	return cipherText;
 };
 
-const decryptAES = (cipherText) => {
-	const bytes = CryptoJS.AES.decrypt(cipherText, process.env.HASH_KEY);
+const decryptAES = (cipherText, key = process.env.HASH_KEY) => {
+	const bytes = CryptoJS.AES.decrypt(cipherText, key);
 	var plainText = bytes.toString(CryptoJS.enc.Utf8);
 
 	return plainText;

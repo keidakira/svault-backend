@@ -49,7 +49,16 @@ router.post("/signin_verification", async (req, res) => {
 			},
 		});
 
-		const user = response.data.client.sessions[0].user;
+		const fullUserData = response.data.client.sessions[0].user;
+		const user = {
+			id: fullUserData.id,
+			firstName: fullUserData.first_name,
+			lastName: fullUserData.last_name,
+			profileImageUrl: fullUserData.profile_image_url,
+			email: fullUserData.email_addresses.filter(
+				(e) => e.id === fullUserData.primary_email_address_id
+			)[0],
+		};
 
 		res.send({
 			error: false,
@@ -121,10 +130,22 @@ router.post("/signup_verification", async (req, res) => {
 				Authorization: req.headers.authorization,
 			},
 		});
+
+		const fullUserData = response.data.client.sessions[0].user;
+		const user = {
+			id: fullUserData.id,
+			firstName: fullUserData.first_name,
+			lastName: fullUserData.last_name,
+			profileImageUrl: fullUserData.profile_image_url,
+			email: fullUserData.email_addresses.filter(
+				(e) => e.id === fullUserData.primary_email_address_id
+			)[0],
+		};
+
 		data = {
 			error: false,
-			data: response.data.client.sessions[0].user,
-			token: encrypt(response.data.client.sessions[0].user),
+			data: user,
+			token: encrypt(user),
 		};
 		status = 200;
 	} catch (e) {

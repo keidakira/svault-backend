@@ -4,6 +4,7 @@ const app = express();
 const routes = require("./routes.js");
 const { encrypt, decrypt } = require("./jwt.js");
 const authRouter = require("./routes/auth");
+const passwordsRouter = require("./routes/passwords");
 const port = 8000;
 
 /* Middleware */
@@ -13,6 +14,7 @@ require("dotenv").config({ path: "../.env" });
 
 /* Routes */
 app.use("/auth", authRouter);
+app.use("/passwords", passwordsRouter);
 
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
 const { axios: axiosApi, axiosBackend } = routes;
@@ -21,16 +23,8 @@ app.get("/", (req, res) => {
 	res.send("OK");
 });
 
-/* Get current user info */
-app.get("/me", (req, res) => {
-	const { token } = req.headers;
-	const [tokenOutput, status] = decrypt(token);
-
-	res.status(status).send(tokenOutput);
-});
-
-/* Get user's full info */
-app.get("/me/info", async (req, res) => {
+/* Get user's information */
+app.get("/me", async (req, res) => {
 	const { token } = req.headers;
 	const [tokenOutput, status] = decrypt(token);
 
@@ -42,10 +36,11 @@ app.get("/me/info", async (req, res) => {
 				url,
 			});
 
+			const { private_metadata: privateData } = response.data;
+
 			res.send({
 				error: false,
-				data: response.data,
-				token: encrypt(response.data),
+				data: { ...tokenOutput, privateData },
 			});
 		} catch (error) {
 			const [data, statusCode] = handleErrors(error);
@@ -56,70 +51,48 @@ app.get("/me/info", async (req, res) => {
 	}
 });
 
+/* Update master key */
 app.put("/master", async (req, res) => {
 	const { token } = req.headers;
 	const [tokenOutput, status] = decrypt(token);
 
 	if (status === 200) {
-		const url = routes.clerk.updateUser + tokenOutput.id;
-		const { private_metadata: privData } = tokenOutput;
-		privData["key"] = encryptAES(req.body.key);
-
+		// First get private data from API
 		try {
 			const response = await axiosBackend({
-				url,
-				method: "PATCH",
-				data: {
-					private_metadata: JSON.stringify(privData),
-				},
+				url: routes.clerk.userInfo + tokenOutput.id,
 			});
 
-			res.send(response.data);
+			let { private_metadata: privateData } = response.data;
+
+			const url = routes.clerk.updateUser + tokenOutput.id;
+			privateData["key"] = encryptAES(req.body.key);
+
+			try {
+				const response = await axiosBackend({
+					url,
+					method: "PATCH",
+					data: {
+						private_metadata: JSON.stringify(privateData),
+					},
+				});
+
+				res.send({
+					error: false,
+				});
+			} catch (error) {
+				const [data, statusCode] = handleErrors(error);
+				res.status(statusCode).send(data);
+			}
 		} catch (error) {
 			const [data, statusCode] = handleErrors(error);
-			res.status(statusCode).send(data);
+			res.status(statusCode).send({
+				error: true,
+				message: "Couldn't fetch user",
+			});
 		}
 	} else {
 		res.status(status).send(tokenOutput);
-	}
-});
-
-/* Save a Password */
-app.post("/passwords/add", async (req, res) => {
-	let { website, login, password } = req.body;
-	const { token } = req.headers;
-	const [tokenOutput, status] = decrypt(token);
-
-	if (status === 200) {
-		const passwords = tokenOutput.private_metadata.passwords ?? [];
-		const url = routes.clerk.updateUser + tokenOutput.id;
-
-		let { private_metadata } = tokenOutput;
-		login = encryptAES(login);
-		password = encryptAES(password);
-
-		passwords.push({
-			website,
-			login,
-			password,
-		});
-
-		private_metadata["passwords"] = passwords;
-
-		try {
-			const response = await axiosBackend({
-				url,
-				method: "PATCH",
-				data: {
-					private_metadata: JSON.stringify(private_metadata),
-				},
-			});
-
-			res.send(response.data);
-		} catch (error) {
-			const [data, statusCode] = handleErrors(error);
-			res.status(statusCode).send(data);
-		}
 	}
 });
 
