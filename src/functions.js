@@ -1,4 +1,5 @@
 const CryptoJS = require("crypto-js");
+const { axiosSvault } = require("./routes");
 require("dotenv").config({ path: "../.env" });
 
 const handleErrors = (errorObject) => {
@@ -50,9 +51,18 @@ const decryptAES = (cipherText, key = process.env.HASH_KEY) => {
 	return plainText;
 };
 
+// function to get private data from axiosSvault
+const getPrivateData = async (token) => {
+	return await axiosSvault({
+		url: "/me",
+		headers: { token: `${token}` },
+	});
+};
+
 module.exports = {
 	handleErrors,
 	addUrlParams,
 	encryptAES,
 	decryptAES,
+	getPrivateData,
 };

@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const { handleErrors, addUrlParams, encryptAES } = require("./functions.js");
 const app = express();
 const routes = require("./routes.js");
@@ -8,6 +9,7 @@ const passwordsRouter = require("./routes/passwords");
 const port = 8000;
 
 /* Middleware */
+app.use(cors({ origin: "http://localhost:3000", exposedHeaders: ["Authorization"]}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 require("dotenv").config({ path: "../.env" });

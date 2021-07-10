@@ -1,117 +1,160 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 require("dotenv").config({ path: "../../.env" });
 
-const { handleErrors, encryptAES } = require("../functions.js");
+const {
+	handleErrors,
+	encryptAES,
+	decryptAES,
+	getPrivateData,
+} = require("../functions.js");
 const { decrypt } = require("../jwt.js");
+const Password = require("../models/Password.js");
+const { axiosSvault } = require("../routes.js");
 const routes = require("../routes.js");
 
-const { axiosSvault, axiosDog } = routes;
-
-// Get passwords by email id
-router.get("/", async (req, res) => {
-	try {
-		const response = await axiosDog({
-			method: "POST",
-			data: JSON.stringify({
-				operation: "search_by_value",
-				schema: "vault",
-				table: "password",
-				search_attribute: "id",
-				search_value: "user_1uow9IjDqTgIQd0RTzLj8g1uEwP",
-				get_attributes: ["*"],
-			}),
-		});
-		res.send(response.data);
-	} catch (error) {
-		console.log(error);
-		res.send("Error");
+// connect to the database
+mongoose.connect(
+	process.env.MONGODB_URL,
+	{
+		useUnifiedTopology: true,
+		useNewUrlParser: true,
+		useFindAndModify: false,
+	},
+	(err) => {
+		if (err) {
+			console.log(err);
+		} else {
+			console.log("Mongoose connected to " + process.env.MONGODB_URL);
+		}
 	}
-});
+);
 
-// Add a password
-// TODO: Input validation, security
-router.post("/add", async (req, res) => {
-	const { token } = req.headers;
+// check user by token header and save the password to the database
+router.post("/", async (req, res) => {
+	const token = req.headers.token;
 	const [tokenOutput, status] = decrypt(token);
-
 	if (status === 200) {
-		// Get private_metadata which contains key to encrypt
-		try {
-			const tempResponse = await axiosSvault({
-				url: "/me",
-				headers: {
-					token,
-				},
+		const { id: userId } = tokenOutput;
+		let { url, login, password: password_requested, type } = req.body;
+		let key;
+
+		// Get the private data from the axiosSvault
+		await getPrivateData(token)
+			.then((response) => {
+				key = response.data.data.privateData.key;
+			})
+			.catch((err) => {
+				console.log("Error");
 			});
 
-			let { type, details } = req.body;
-			let { key } = tempResponse.data.data.privateData;
+		if (key !== undefined) {
+			login = encryptAES(login, key);
+			password_requested = encryptAES(password_requested, key);
 
-			details.login = encryptAES(details.login, key);
-			details.password = encryptAES(details.password, key);
-
-			let passwordObject = {
+			const password = new Password({
 				type,
-				details,
-				id: tokenOutput.id,
-			};
+				user_id: userId,
+				login,
+				password: password_requested,
+				url,
+			});
 
-			try {
-				const response = await axiosDog({
-					method: "POST",
-					data: JSON.stringify({
-						operation: "insert",
-						schema: "vault",
-						table: "password",
-						records: [passwordObject],
-					}),
+			password
+				.save()
+				.then((response) => {
+					res.json(response);
+				})
+				.catch((err) => {
+					res.status(400).json({ error: true, message: err.message });
 				});
-				res.send(response.data);
-			} catch (error) {
-				console.log(error);
-				res.send("Error");
-			}
-		} catch (error) {
-			res.send("Error");
+		} else {
+			res.status(400).send({ error: true });
 		}
 	} else {
-		res.status(status).send(tokenOutput);
+		res.status(status).send({ error: "Invalid token" });
 	}
 });
 
-// Delete a password by
-router.delete("/:id", async (req, res) => {
-	const { token } = req.headers;
+// get all passwords by user id from token header
+router.get("/", (req, res) => {
+	const token = req.headers.token;
 	const [tokenOutput, status] = decrypt(token);
-
 	if (status === 200) {
-		const passwordHash = req.params.id;
-		const userId = tokenOutput.id;
+		const { id: userId } = tokenOutput;
+		Password.find({ user_id: userId })
+			.exec()
+			.then((response) => {
+				res.json(response);
+			})
+			.catch((err) => {
+				res.status(400).json({ error: true, message: err.message });
+			});
+	} else {
+		res.status(status).send({ error: "Invalid token" });
+	}
+});
 
-		try {
-			const response = await axiosDog({
-				method: "POST",
-				data: JSON.stringify({
-					operation: "sql",
-					sql: `DELETE FROM vault.password WHERE achukubuchuku="${passwordHash}" AND id="${userId}"`,
-				}),
+// update a password by user id from token header
+router.put("/:id", async (req, res) => {
+	const token = req.headers.token;
+	const [tokenOutput, status] = decrypt(token);
+	if (status === 200) {
+		const { id: userId } = tokenOutput;
+		let { url, login, password: password_requested, type } = req.body;
+
+		// Get the private data from the axiosSvault
+		const { key } = await getPrivateData(token, res)
+			.then((response) => response.data.data.privateData)
+			.catch((err) => {
+				return { error: true, message: err.message };
 			});
 
-			let rows_deleted = response.data.deleted_hashes.length;
+		if (key !== undefined) {
+			login = encryptAES(login, key);
+			password_requested = encryptAES(password_requested, key);
 
-			res.send({
-				error: false,
-				rows_deleted,
-			});
-		} catch (error) {
-			res.status(400).send({
-				error: true,
-				message: "Unable to delete user",
-			});
+			Password.findOneAndUpdate(
+				{ _id: req.params.id, user_id: userId },
+				{
+					login,
+					password: password_requested,
+					url,
+					type,
+				}
+			)
+				.exec()
+				.then((response) => {
+					res.json(response);
+				})
+				.catch((err) => {
+					res.status(400).json({ error: true, message: err.message });
+				});
+		} else {
+			res.status(400).send({ error: true });
 		}
 	} else {
-		res.status(status).send(tokenOutput);
+		res.status(status).send({ error: "Invalid token" });
+	}
+});
+
+// delete a password by user id from token header
+router.delete("/:id", (req, res) => {
+	const token = req.headers.token;
+	const [tokenOutput, status] = decrypt(token);
+	if (status === 200) {
+		const { id: userId } = tokenOutput;
+		Password.findOneAndRemove({ _id: req.params.id, user_id: userId })
+			.exec()
+			.then((response) => {
+				res.json(response);
+			})
+			.catch((err) => {
+				res.status(400).json({ error: true, message: err.message });
+			});
+	} else {
+		res.status(status).send({ error: "Invalid token" });
 	}
 });
 
