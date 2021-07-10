@@ -5,4 +5,8 @@ Svault is short for Secured Vault. It is an Open Source Password manager where y
 # Tech Used
 
 -   Clerk (for Authentication)
--   HarperDB (for NoSQL and SQL DB Access)
+-   MongoDB
+-   Node.js
+-   Express
+
+Front-end Repo: https://github.com/keidakira/svault
