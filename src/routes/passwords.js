@@ -11,8 +11,6 @@ const {
 } = require("../functions.js");
 const { decrypt } = require("../jwt.js");
 const Password = require("../models/Password.js");
-const { axiosSvault } = require("../routes.js");
-const routes = require("../routes.js");
 
 // connect to the database
 mongoose.connect(
