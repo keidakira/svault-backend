@@ -9,7 +9,9 @@ const passwordsRouter = require("./routes/passwords");
 const port = 8000;
 
 /* Middleware */
-app.use(cors({ origin: "http://localhost:3000", exposedHeaders: ["Authorization"]}));
+app.use(
+	cors({ origin: "http://localhost:3000", exposedHeaders: ["Authorization"] })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 require("dotenv").config({ path: "../.env" });
@@ -22,7 +24,7 @@ const AUTH_TOKEN = process.env.AUTH_TOKEN;
 const { axios: axiosApi, axiosBackend } = routes;
 
 app.get("/", (req, res) => {
-	res.send("OK");
+	res.send("Ok");
 });
 
 /* Get user's information */
