@@ -15,7 +15,7 @@ app.use(morgan("dev"));
 
 // add routes
 app.use("/auth", authRoute);
-app.use("/api", userRoute);
+app.use("/user", userRoute);
 
 app.listen(8000, () => {
 	console.log("app listening on port 8000");
