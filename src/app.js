@@ -1,6 +1,7 @@
 // import required modules
 const express = require("express");
 const morgan = require("morgan");
+const emailService = require("./services/EmailService");
 
 // import routes
 const userRoute = require("./routes/userRoute");
