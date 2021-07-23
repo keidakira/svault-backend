@@ -6,6 +6,7 @@ const emailService = require("./services/EmailService");
 // import routes
 const userRoute = require("./routes/userRoute");
 const authRoute = require("./routes/authRoute");
+const passwordRoute = require("./routes/passwordRoute");
 
 var app = express();
 
@@ -17,6 +18,7 @@ app.use(morgan("dev"));
 // add routes
 app.use("/auth", authRoute);
 app.use("/user", userRoute);
+app.use("/password", passwordRoute);
 
 app.listen(8000, () => {
 	console.log("app listening on port 8000");

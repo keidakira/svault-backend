@@ -1,3 +1,6 @@
+const routes = require("../routes");
+const { axiosBackend } = routes;
+
 exports.validatePrivateKey = function (req, res, next) {
 	var privateKey = req.body.key;
 	var privateKeyPattern =
@@ -8,4 +11,15 @@ exports.validatePrivateKey = function (req, res, next) {
 		});
 	}
 	next();
+};
+
+exports.getUserPrivateKey = async (user_id) => {
+	const response = await axiosBackend({
+		url: "/v1/users/" + user_id,
+	});
+
+	// extract private key from response
+	const { key } = response.data.private_metadata;
+
+	return key;
 };

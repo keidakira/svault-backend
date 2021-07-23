@@ -13,4 +13,5 @@ const passwordSchema = new mongoose.Schema(
 );
 
 // Export the model
-module.exports = mongoose.model("Password", passwordSchema);
+module.exports =
+	mongoose.models.Password || mongoose.model("Password", passwordSchema);
